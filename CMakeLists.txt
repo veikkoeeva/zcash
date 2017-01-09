@@ -2,12 +2,16 @@
 cmake_minimum_required(VERSION 3.6 FATAL_ERROR)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# Sets the path to extra modules.
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+
 set(ZCASH_MAJOR_VERSION 1)
 set(ZCASH_MINOR_VERSION 0)
 set(ZCASH_PATCH_VERSION 4)
 set(ZCASH_VERSION ${ZCASH_MAJOR_VERSION}.${ZCASH_MINOR_VERSION}.${ZCASH_PATCH_VERSION})
 
-project(ZCash VERSION ${ZCASH_VERSION} LANGUAGES CXX)
+project(ZCash VERSION ${ZCASH_VERSION} LANGUAGES CXX C)
 
 # Set Max OSX RPath explictitly. See more at https://blog.kitware.com/upcoming-in-cmake-2-8-12-osx-rpath-support/.
 if(POLICY CMP0042)
@@ -15,7 +19,7 @@ if(POLICY CMP0042)
 endif()
 
 # https://cmake.org/cmake/help/v3.7/command/enable_testing.html
-# enable_testing() 
+# enable_testing()
 
 
 set(CPACK_PACKAGE_NAME ZCash)
@@ -36,9 +40,30 @@ else()
 endif()
 add_definitions(-DZCASH_GIT_VERSION="${ZCASH_GIT_VERSION}")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+# See rationale at https://crascit.com/2015/03/28/enabling-cxx11-in-cmake/.
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+
+IF(WIN32)
+	set(ENV{sodium_DIR} ${CMAKE_SOURCE_DIR}/libs/Sodium)
+	find_package(Sodium REQUIRED)
+	include_directories(${CMAKE_SOURCE_DIR}/libs/sodium/include)
+	
+	set(OPENSSL_ROOT_DIR ${CMAKE_SOURCE_DIR}/libs/OpenSSL/)
+	find_package(OpenSSL REQUIRED)
+	include_directories(${CMAKE_SOURCE_DIR}/libs/OpenSSL/)
+	
+	# Projects willing to statically link Sodium must define a macro named SODIUM_STATIC.
+	# This will prevent symbol definitions from being referenced with __dllexport.
+	# https://download.libsodium.org/doc/installation/ 
+	# add_definitions(SODIUM_STATIC)
+	
+	
+endif()
 
 # Boost related settings: https://cmake.org/cmake/help/v3.6/module/FindBoost.html.
 set(Boost_DETAILED_FAILURE_MSG on)
@@ -57,15 +82,17 @@ if(NOT DEFINED BOOST_ROOT
 	AND NOT DEFINED BOOST_LIBRARYDIR
 	AND NOT DEFINED ENV{BOOST_LIBRARYDIR})
     if(APPLE)
-        # set(BOOST_ROOT "../../../boost/boost_1_54_0/mac")
+        # set(BOOST_ROOT "boost/boost_1_63_0/mac")
     elseif(WIN32)
         # It appears there isn't necessarily a standard install directory in Windows.
-		# By default these are the ones used, though.
+		# By default these are the ones used, though. These probably should be downloaded
+		# and built on-demand...
 		set(BOOST_ROOT "C:/Program Files/boost/boost_1_63_0")
 		set(BOOST_INCLUDEDIR "C:/Program Files/boost/boost_1_63_0/boost")
         set(BOOST_LIBRARYDIR "C:/Program Files/boost/boost_1_63_0/stage/lib")
     endif()
 endif()
+
 if(APPLE OR WIN32)
 	set(Boost_USE_STATIC_LIBS TRUE)
 endif()
@@ -84,10 +111,22 @@ set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREAD ON)
 # target_link_libraries(some_target ${Boost_LIBRARIES})
 
+# This sets the 'src' directory, rooted in the directory this CMakeLists.txt
+# is in, as the base directory to include files.
+include_directories(${CMAKE_SOURCE_DIR}/src)
+
 # See https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
 # for explanation of the following arrangment.
 # Also see https://cmake.org/cmake/help/v3.7/command/add_library.html and
 # http://gernotklingler.com/blog/creating-using-shared-libraries-different-compilers-different-operating-systems/.
+
+add_library(BitcoinServer "")
+add_library(BitcoinWallet "")
+# add_library(EquihashTromp "")
+add_library(Bitcoin "")
+add_library(UnivalueBitcoin "")
+add_library(BitcoinCommon "")
+add_library(BitcoinUtil "")
 add_library(ZCashConsensus "")
 add_library(ZCash "")
 
